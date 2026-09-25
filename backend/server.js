@@ -11,13 +11,13 @@ dotenv.config();
 // Connect to MongoDB and run Auto-Seed check
 connectDB().then(async () => {
   await autoSeedIfEmpty();
-});
+}).catch(err => console.error('MongoDB connection error:', err));
 
 const app = express();
 
-// Explicit CORS configuration for Vite dev server
+// CORS configuration (Netlify frontend aur localhost dono allow karne ke liye)
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+  origin: true,
   credentials: true
 }));
 
@@ -28,16 +28,25 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Static uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Root route (Vercel domain directly open karne par dikhega)
+app.get('/', (req, res) => {
+  res.send('MediHelp Backend Server is running successfully on Vercel!');
+});
+
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
-  const Disease = require('./models/Disease');
-  const count = await Disease.countDocuments();
-  res.status(200).json({
-    status: 'online',
-    system: 'MediHelp Intelligence Engine',
-    conditionsCount: count,
-    timestamp: new Date()
-  });
+  try {
+    const Disease = require('./models/Disease');
+    const count = await Disease.countDocuments();
+    res.status(200).json({
+      status: 'online',
+      system: 'MediHelp Intelligence Engine',
+      conditionsCount: count,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
 });
 
 // Register API Routes
@@ -61,9 +70,11 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`===================================================`);
-  console.log(`  MediHelp Backend Server running on port ${PORT}`);
-  console.log(`  Auto-Seeding Persistence Activated`);
-  console.log(`===================================================`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`MediHelp Backend Server running on port ${PORT}`);
+  });
+}
+
+// Export for Vercel serverless function
+module.exports = app;
