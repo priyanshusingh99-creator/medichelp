@@ -1,10 +1,19 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
+// Local me uploads folder use karega, Vercel/Production me writable /tmp directory
+const uploadDir = process.env.NODE_ENV === 'production' 
+  ? path.join(os.tmpdir(), 'uploads') 
+  : path.join(__dirname, '../uploads');
+
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+} catch (err) {
+  console.warn('Upload directory creation skipped:', err.message);
 }
 
 const storage = multer.diskStorage({
